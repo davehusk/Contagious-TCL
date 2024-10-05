@@ -1,0 +1,154 @@
+mv .files/* ./
+./configure
+make static
+cd encrypt
+make tclencrypt
+mv tclencrypt ../en
+cd ..
+echo "Done listing. Beginning config file maker:"
+ans2="y"
+while [ $ans2 = "y" ]
+do
+echo -n "Botname:      "
+read bot
+echo -n "Host:         "
+read vhost
+echo -n "Ip:           "
+read ip
+echo -n "Telnet Port:  "
+read port
+echo -n "Main Channel: "
+read homechan
+echo -n "Hub Name:     "
+read hub
+echo -n "Alt-Hub Name: "
+read althub
+echo -n "Owner:        "
+read owner
+cat /dev/null > "$bot.conf"
+cat >> "$bot.conf" << EOF
+set bname "$bot"
+set btelnet $port
+set my-hostname "$vhost"
+set my-ip "$ip"
+set hubname       "$hub"
+set althubname    "$althub"
+set spiffyeggdrop 1
+set bchan           "$homechan"
+set globalchanmodes "+tn"
+set bdir            "..."
+set logging         0
+set owner           "$owner"
+set realname        "[string tolower \$bname]"
+set admin           "[lindex \$owner 0]"
+set timezone        "EST"
+#- If shell's firewall is weird, get admin to give you a free port
+#- and uncomment the following line
+#set reserved-port 3335
+#-BNC Settings
+set usebnc     0
+set bncserver  "bnc.wuteva.com 19238"
+set bncpass    "3l33t"
+set bncvhost   "vhost.wuteva.com"
+set bncconnect "irc.concentric.net"
+#-Firewall Settings
+set usefirewall 0
+set fwallserv   "utexas.edu:1080"
+EOF
+echo ""
+echo "Done making config file."     
+echo ""
+echo "Running config encryption program..."
+echo ""
+./en $bot.conf .config/$bot.conf
+rm $bot.conf
+cat decrypt >> .config/$bot.conf
+echo "" 
+echo "Done."
+echo ""
+echo -n "Type 'y' to make another bot: "
+read ans2   
+done
+echo ""
+echo "Making crontab..."
+echo ""
+echo "Setting up the go file..."
+cat >> go << EOF
+botdir="$PWD"
+cd \$botdir  
+for script in *.conf
+do
+ if [ ! -r \$script ]
+  then continue
+ fi
+ botname=\`echo \$script | cut -d. -f1\`
+ if [ -r .pid.\$botname ]
+  then
+  botpid=\`cat .pid.\$botname\`
+  if \`kill -CHLD \$botpid >/dev/null 2>&1\`
+   then
+   continue
+  fi
+  rm -f .pid.\$botname
+ fi
+./Contagious \$script
+done
+EOF
+chmod +x go
+echo "Done making go file (botchk)"
+echo ""
+echo "Making cron file..."
+cat >> cron << EOF
+0,10,20,30,40,50 * * * * $PWD/go >/dev/null 2>&1
+EOF
+echo "Done."
+echo ""
+echo "Done making crontab file. Adding to crontab..."
+crontab cron
+echo "Crontab successfully added."
+echo "Finished installing botpack. Running finishing commands:"
+echo Attempting clean up....
+echo Disguising all critical files...
+mv eggdrop .e
+mv language .l
+mv go .go
+mv cron .cron
+mv en .files/.encrypt
+mv makeconf .files
+mv decrypt .files/.decrypt
+echo - Done
+echo Now deleting unnecessary files...
+rm -rf *
+echo - Done
+echo Renaming critical files...
+mv .e Contagious
+cd .config
+rm blank
+mv * ../
+cd ..
+rm -rf .config
+mv .l language
+mv .cron cron
+mv .files files
+mv .go go
+echo -
+echo "Finished installing Contagious... Running all your bots:"
+for script in *.conf
+do
+ if [ ! -r $script ]
+  then continue
+ fi
+ botname=`echo $script | cut -d. -f1`
+ if [ -r .pid.$botname ]
+  then 
+  botpid=`cat .pid.$botname`
+  if `kill -CHLD $botpid >/dev/null 2>&1`
+   then
+   continue
+  fi
+  rm -f .pid.$botname
+ fi
+./Contagious -m $script
+done
+echo "Then type: /msg <bot> pswd <your password>"
+echo " "
